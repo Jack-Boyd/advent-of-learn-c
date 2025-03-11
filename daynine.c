@@ -24,46 +24,52 @@ int read_file(const char* filename, int diskmap[LENGTH]) {
 
 int* create_blocks(int diskmap[LENGTH], int full_size) {
   int* file_rep = malloc(full_size * sizeof(int));
+  if (!file_rep) {
+      perror("malloc failed");
+      exit(EXIT_FAILURE);
+  }
+  
   int diskmap_idx = 0;
   int disk_val = diskmap[diskmap_idx];
-  int id = 0;
-  bool space = false;
+  int file_id = 0;
+  bool in_free_segment = false;  // false means we're in a file segment
+  int pos = 0;
   
-  int i = 0;
-  while (i < full_size) {
-    if (disk_val == 0) {
-      disk_val = diskmap[++diskmap_idx];
-      if (!space)
-        id++;
-      space = !space;
-      continue;
-    }
-    
-    if (!space)
-      file_rep[i] = id;
-    else 
-      file_rep[i] = -1;
-    
-    disk_val--;
-    i++;
-  } 
+  while (pos < full_size) {
+      if (disk_val == 0) {
+          disk_val = diskmap[++diskmap_idx];
+          // When leaving a file segment, increment the file id.
+          if (!in_free_segment)
+              file_id++;
+          in_free_segment = !in_free_segment;
+          continue;
+      }
+      
+      if (!in_free_segment)
+          file_rep[pos] = file_id;
+      else
+          file_rep[pos] = -1;
+      
+      disk_val--;
+      pos++;
+  }
+  
   return file_rep;
 }
 
 long calculate_checksum(int diskmap[LENGTH]) {
   long checksum = 0;
   int full_size = 0;
-
-  for (int i = 0; i < LENGTH; i++) 
+  
+  for (int i = 0; i < LENGTH; i++)
     full_size += diskmap[i];
-
+  
   int* file_rep = create_blocks(diskmap, full_size);
-
-  while (1) {
-    int left = -1, right = -1;
-    
+  
+  while (true) {
+    int left = -1;
     for (int j = 0; j < full_size; j++) {
-      if (file_rep[j] == -1) { 
+      if (file_rep[j] == -1) {
         left = j;
         break;
       }
@@ -71,8 +77,9 @@ long calculate_checksum(int diskmap[LENGTH]) {
     if (left == -1)
       break;
     
+    int right = -1;
     for (int j = full_size - 1; j >= 0; j--) {
-      if (file_rep[j] != -1) { 
+      if (file_rep[j] != -1) {
         right = j;
         break;
       }
@@ -87,18 +94,18 @@ long calculate_checksum(int diskmap[LENGTH]) {
   for (int i = 0; i < full_size; i++) {
     if (file_rep[i] == -1)
       break;
-    checksum += (i * file_rep[i]);
+    checksum += (long)i * file_rep[i];
   }
-
+  
+  free(file_rep);
   return checksum;
 }
 
 long calculate_new_checksum(int diskmap[LENGTH]) {
   long checksum = 0;
   int full_size = 0;
-  int n_files = 0;  // count how many files there are
+  int n_files = 0;
   
-  // Calculate total number of blocks and count files (even-index values are file lengths)
   for (int i = 0; i < LENGTH; i++) {
     full_size += diskmap[i];
     if (i % 2 == 0)
@@ -107,9 +114,7 @@ long calculate_new_checksum(int diskmap[LENGTH]) {
 
   int* file_rep = create_blocks(diskmap, full_size);
 
-  // Process each file exactly once in order of decreasing file ID.
   for (int file_id = n_files - 1; file_id >= 0; file_id--) {
-    // Locate the file's contiguous segment in file_rep.
     int seg_start = -1, seg_end = -1;
     for (int j = 0; j < full_size; j++) {
       if (file_rep[j] == file_id) {
@@ -121,14 +126,11 @@ long calculate_new_checksum(int diskmap[LENGTH]) {
         break;
       }
     }
-    // If file not found (it might have been moved already), skip it.
     if (seg_start == -1)
       continue;
       
     int seg_len = seg_end - seg_start + 1;
     
-    // Look for the leftmost contiguous free span (i.e. blocks with -1) 
-    // before seg_start that is at least seg_len in length.
     int best_start = -1;
     int current_start = -1;
     int current_len = 0;
@@ -149,18 +151,14 @@ long calculate_new_checksum(int diskmap[LENGTH]) {
     if (best_start == -1 && current_len >= seg_len)
       best_start = current_start;
     
-    // If a free span is found, move the file.
     if (best_start != -1) {
       for (int j = 0; j < seg_len; j++) {
         file_rep[best_start + j] = file_id;
         file_rep[seg_start + j] = -1;
       }
     }
-    // If no span is found, the file stays in place.
   }
 
-  // Compute checksum: for each block that contains a file (i.e. not -1),
-  // multiply its index by its file ID and add it to the checksum.
   for (int i = 0; i < full_size; i++) {
     if (file_rep[i] == -1)
       continue;
