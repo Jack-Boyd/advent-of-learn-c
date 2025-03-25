@@ -91,6 +91,7 @@ int calc_trailhead_sum(int map[LENGTH][LENGTH]) {
   }
   return total_trailhead_sum;
 }
+
 int main() {
   int map[LENGTH][LENGTH];
   if (read_file("dayten.txt", map) == EXIT_FAILURE) {
