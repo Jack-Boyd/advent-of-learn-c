@@ -92,6 +92,54 @@ int calc_trailhead_sum(int map[LENGTH][LENGTH]) {
   return total_trailhead_sum;
 }
 
+int count_paths(int map[LENGTH][LENGTH], int r, int c, int memo[LENGTH][LENGTH]) {
+  // If we are at a 9, this is a valid complete trail.
+  if (map[r][c] == 9) {
+      return 1;
+  }
+  // Return cached result if already computed.
+  if (memo[r][c] != -1) {
+      return memo[r][c];
+  }
+  
+  int total = 0;
+  int dr[4] = {-1, 1, 0, 0};
+  int dc[4] = {0, 0, -1, 1};
+  int next_val = map[r][c] + 1;
+  
+  // Try all four cardinal directions.
+  for (int d = 0; d < 4; d++) {
+      int nr = r + dr[d];
+      int nc = c + dc[d];
+      if (nr >= 0 && nr < LENGTH && nc >= 0 && nc < LENGTH) {
+          if (map[nr][nc] == next_val) {
+              total += count_paths(map, nr, nc, memo);
+          }
+      }
+  }
+  
+  memo[r][c] = total;
+  return total;
+}
+
+int calc_trailhead_rating_sum(int map[LENGTH][LENGTH]) {
+  int memo[LENGTH][LENGTH];
+  for (int i = 0; i < LENGTH; i++) {
+      for (int j = 0; j < LENGTH; j++) {
+          memo[i][j] = -1;
+      }
+  }
+  
+  int total_rating_sum = 0;
+  for (int i = 0; i < LENGTH; i++) {
+      for (int j = 0; j < LENGTH; j++) {
+          if (map[i][j] == 0) {
+              total_rating_sum += count_paths(map, i, j, memo);
+          }
+      }
+  }
+  return total_rating_sum;
+}
 int main() {
   int map[LENGTH][LENGTH];
   if (read_file("dayten.txt", map) == EXIT_FAILURE) {
@@ -100,6 +148,8 @@ int main() {
   }
 
   int trailhead_sum = calc_trailhead_sum(map);
+  int trailhead_rating_sum = calc_trailhead_rating_sum(map);
   printf("%d\n", trailhead_sum);
+  printf("%d\n", trailhead_rating_sum);
   return 0;
 }
