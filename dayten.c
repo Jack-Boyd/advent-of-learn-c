@@ -93,11 +93,9 @@ int calc_trailhead_sum(int map[LENGTH][LENGTH]) {
 }
 
 int count_paths(int map[LENGTH][LENGTH], int r, int c, int memo[LENGTH][LENGTH]) {
-  // If we are at a 9, this is a valid complete trail.
   if (map[r][c] == 9) {
       return 1;
   }
-  // Return cached result if already computed.
   if (memo[r][c] != -1) {
       return memo[r][c];
   }
@@ -107,7 +105,6 @@ int count_paths(int map[LENGTH][LENGTH], int r, int c, int memo[LENGTH][LENGTH])
   int dc[4] = {0, 0, -1, 1};
   int next_val = map[r][c] + 1;
   
-  // Try all four cardinal directions.
   for (int d = 0; d < 4; d++) {
       int nr = r + dr[d];
       int nc = c + dc[d];
